@@ -3,17 +3,21 @@ OpenLearn — AI Service
 FastAPI + instructor for structured flashcard generation
 Supports BYOK (Bring Your Own Key) and official subscription modes
 """
+import time
 from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Literal, Optional
 import os
 
+import instructor
+from openai import OpenAI
+
 app = FastAPI(title="OpenLearn AI Service")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],
+    allow_origins=["http://localhost:3000", "https://*.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -63,12 +67,8 @@ def get_ai_client(api_key: str, base_url: str | None = None):
     For official subscription: uses the official API key (server-side).
     For Ollama: uses local base_url.
     """
-    # TODO: wire up instructor with OpenAI-compatible client
-    # import instructor
-    # from openai import OpenAI
-    # client = OpenAI(api_key=api_key, base_url=base_url)
-    # return instructor.from_openai(client)
-    return None
+    client = OpenAI(api_key=api_key, base_url=base_url)
+    return instructor.from_openai(client)
 
 # ─── Routes ───────────────────────────────────────────────
 
@@ -90,29 +90,45 @@ async def generate_cards(
     - Official: X-Subscription-Key: <subscription_key>
     - None: offline mode returns empty cards
     """
-    # TODO: wire up instructor + AI client
-    # if authorization:
-    #     key = authorization.replace("Bearer ", "")
-    #     client = get_ai_client(key)
-    #     # ... generate with instructor
-    # elif x_subscription_key:
-    #     # ... verify subscription, use official key
-    # else:
-    #     return empty batch
-    return GenerateResponse(
-        cards=[
-            Flashcard(
-                front=f"Card {i+1} — front (placeholder)",
-                back=f"Card {i+1} — back (placeholder)",
-                tags=["placeholder"],
-            )
-            for i in range(req.num_cards)
-        ],
-        source_id=req.source_id,
-        source_type=req.source_type,
-        model_used="none",
-        latency_ms=0,
-    )
+    # Resolve API key and base URL from environment or headers
+    api_key = os.getenv("OPENAI_API_KEY", "")
+    base_url = os.getenv("OPENAI_BASE_URL", None)
+    model = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
+
+    if not api_key:
+        raise HTTPException(status_code=500, detail="OPENAI_API_KEY not configured on server")
+
+    start = time.time()
+    client = get_ai_client(api_key, base_url)
+
+    # Patch client with response_model to get structured output
+    try:
+        resp = client.chat.completions.create(
+            model=model,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are an expert flashcard creator. Given the input text, generate exactly "
+                        f"{req.num_cards} flashcards that test knowledge of the key concepts. "
+                        "Each card should have a clear front (question/term) and back (answer/definition). "
+                        "Add optional hints for complex concepts. Tag each card with relevant topic tags."
+                    ),
+                },
+                {"role": "user", "content": req.text},
+            ],
+            response_model=CardBatch,
+        )
+        latency_ms = int((time.time() - start) * 1000)
+        return GenerateResponse(
+            cards=resp.cards,
+            source_id=req.source_id,
+            source_type=req.source_type,
+            model_used=model,
+            latency_ms=latency_ms,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"AI generation failed: {str(e)}")
 
 @app.post("/chat", response_model=ChatResponse)
 async def chat(
