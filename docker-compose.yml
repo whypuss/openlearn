@@ -1,0 +1,59 @@
+version: "3.8"
+
+services:
+  # ── Rust Backend (Loco-rs + SQLite) ───────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./backend:/app
+      - openlearn_data:/data
+    environment:
+      - DATABASE_URL=/data/openlearn.db
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Python AI Service (FastAPI + instructor) ──────────────────────────────
+  ai-service:
+    build:
+      context: ./ai-service
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./ai-service:/app
+      - ~/.openai:/root/.openai  # API key mount
+    environment:
+      - OPENAI_API_KEY_FILE=/root/.openai/api_key
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Frontend (Next.js dev server) ─────────────────────────────────────────
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - pnpm_store:/app/node_modules/.pnpm-store
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8080
+      - NEXT_PUBLIC_AI_URL=http://localhost:8000
+    depends_on:
+      - backend
+      - ai-service
+
+volumes:
+  openlearn_data:
+  pnpm_store:
