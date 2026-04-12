@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, useEffect, use, useRef } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
@@ -15,6 +15,7 @@ import {
   type Card,
 } from "@/lib/db";
 import { createInitialState, parseSM2State, formatInterval } from "@/lib/scheduler";
+import { generateFlashcards, type GeneratedCard } from "@/lib/ai";
 
 export default function DeckDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -25,7 +26,7 @@ export default function DeckDetailPage({ params }: { params: Promise<{ id: strin
   const [cards, setCards] = useState<Card[]>([]);
   const [dueCards, setDueCards] = useState<Card[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"cards" | "add">("cards");
+  const [activeTab, setActiveTab] = useState<"cards" | "add" | "generate">("cards");
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   // Add card form
@@ -133,6 +134,12 @@ export default function DeckDetailPage({ params }: { params: Promise<{ id: strin
               Review {dueCards.length}
             </Link>
           )}
+          <Link
+            href={`/practice/${deckId}`}
+            className="flex items-center gap-2 px-4 py-2 bg-indigo-500 hover:bg-indigo-400 text-white font-semibold text-sm rounded-xl transition-all"
+          >
+            📝 Practice Test
+          </Link>
           <button
             onClick={() => setShowDeleteConfirm(true)}
             className="p-2 text-[#A89585] hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
