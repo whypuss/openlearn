@@ -1,7 +1,7 @@
 """
-AI generation endpoints using Hugging Face Inference API
-Free tier — no API key required
+AI generation endpoints using OpenRouter API
 """
+import os
 import re
 import json
 import httpx
@@ -13,31 +13,29 @@ from ..db import get_supabase
 
 router = APIRouter(prefix="/ai", tags=["ai"])
 
-HF_API_BASE = "https://api-inference.huggingface.co/models"
-DEFAULT_MODEL = "Qwen/Qwen2.5-7B-Instruct"
+OPENROUTER_API_KEY = os.getenv("OPENROUTER_API_KEY", "")
+DEFAULT_MODEL = "anthropic/claude-3-haiku"  # fast + cheap
 
-def hf_generate(prompt: str, max_tokens: int = 1024) -> str:
-    """Call Hugging Face Inference API (sync httpx)."""
-    url = f"{HF_API_BASE}/{DEFAULT_MODEL}"
-    payload = {
-        "inputs": prompt,
-        "parameters": {
-            "max_new_tokens": max_tokens,
-            "temperature": 0.7,
-            "return_full_text": False,
+def openrouter_generate(prompt: str, max_tokens: int = 1024) -> str:
+    """Call OpenRouter API."""
+    response = httpx.post(
+        "https://openrouter.ai/api/v1/chat/completions",
+        headers={
+            "Authorization": f"Bearer {OPENROUTER_API_KEY}",
+            "Content-Type": "application/json",
         },
-        "options": {"use_cache": True, "wait_for_model": True},
-    }
-    with httpx.Client(timeout=120.0) as client:
-        response = client.post(url, json=payload)
+        json={
+            "model": DEFAULT_MODEL,
+            "messages": [{"role": "user", "content": prompt}],
+            "max_tokens": max_tokens,
+            "temperature": 0.7,
+        },
+        timeout=120.0,
+    )
     if response.status_code != 200:
-        raise HTTPException(status_code=502, detail=f"HF API error: {response.status_code} {response.text}")
-    result = response.json()
-    if isinstance(result, list):
-        return result[0].get("generated_text", "")
-    if isinstance(result, dict):
-        return result.get("generated_text", result.get("content", str(result)))
-    return str(result)
+        raise HTTPException(status_code=502, detail=f"OpenRouter error: {response.status_code} {response.text}")
+    data = response.json()
+    return data["choices"][0]["message"]["content"]
 
 def extract_json(text: str) -> dict | None:
     match = re.search(r'\{[\s\S]*"cards"[\s\S]*\}|\{[\s\S]*"questions"[\s\S]*\}', text)
@@ -94,7 +92,7 @@ async def generate(req: GenerateRequest, user_id: str = get_current_user):
         now = datetime.now(timezone.utc).isoformat()
 
         if req.mode == "flashcards":
-            raw = hf_generate(flashcard_prompt(req.text, req.num_cards), max_tokens=1024)
+            raw = openrouter_generate(flashcard_prompt(req.text, req.num_cards), max_tokens=1024)
             data = extract_json(raw)
             raw_cards = data.get("cards", []) if data else []
             if not raw_cards:
@@ -113,7 +111,7 @@ async def generate(req: GenerateRequest, user_id: str = get_current_user):
             result = db.table("cards").insert(rows).execute()
             cards_response = result.data
         else:
-            raw = hf_generate(practice_prompt(req.text, req.num_cards), max_tokens=2048)
+            raw = openrouter_generate(practice_prompt(req.text, req.num_cards), max_tokens=2048)
             data = extract_json(raw)
             raw_qs = data.get("questions", []) if data else []
             if not raw_qs:
@@ -144,5 +142,5 @@ async def generate(req: GenerateRequest, user_id: str = get_current_user):
     return GenerateResponse(
         cards=[CardResponse(**c) for c in cards_response],
         questions=[],
-        model_used=DEFAULT_MODEL,
+        model_used="anthropic/claude-3-haiku",
     )

@@ -1,0 +1,6 @@
+[project]
+name = "openlearn"
+
+[service]
+name = "api"
+path = "."
