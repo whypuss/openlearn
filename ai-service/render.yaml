@@ -1,5 +1,4 @@
 # Render Blueprint — OpenLearn AI Service
-# Deploy: render-blueprints apply render.yaml
 services:
   - type: web
     name: openlearn-api
@@ -11,11 +10,10 @@ services:
     healthCheckPath: /health
     envVars:
       - key: SUPABASE_URL
-        sync: false
-      - key: SUPABASE_SERVICE_KEY
-        sync: false
-      - key: SUPABASE_JWT_SECRET
-        sync: false
+        value: https://xtyrolsbylylcklvyhsl.supabase.co
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        value: xtyrolsbylylcklvyhsl
+      - key: OPENROUTER_API_KEY
+        value: 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
       - key: FRONTEND_URL
-        value: https://openlearn.pages.dev
-        sync: false
+        value: https://4431ab0c.openlearn-5pq.pages.dev
