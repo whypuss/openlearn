@@ -1,14 +1,17 @@
 FROM node:20-alpine
 
-WORKDIR /app/frontend
+WORKDIR /app
 
 ENV PORT=7860
 EXPOSE 7860
 
+# Install dependencies
 COPY frontend/package.json frontend/package-lock.json* ./
 RUN npm install
 
+# Build in container
 COPY frontend/ ./
 RUN npm run build
 
+# Run
 CMD ["npx", "next", "start", "-p", "7860"]
