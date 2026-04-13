@@ -1,0 +1,21 @@
+# Render Blueprint — OpenLearn AI Service
+# Deploy: render-blueprints apply render.yaml
+services:
+  - type: web
+    name: openlearn-api
+    env: python
+    region: oregon
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: SUPABASE_JWT_SECRET
+        sync: false
+      - key: FRONTEND_URL
+        value: https://openlearn.pages.dev
+        sync: false
