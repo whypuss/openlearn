@@ -1,12 +1,9 @@
-# Render Blueprint — OpenLearn AI Service
-# IMPORTANT: rootDir makes Render run from ai-service/ directory
+# Render Blueprint — OpenLearn AI Service (Docker)
 services:
   - type: web
     name: openlearn-api
-    env: python
+    env: docker
     region: oregon
     plan: free
-    rootDir: ai-service
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    dockerfilePath: ./Dockerfile
     healthCheckPath: /health
