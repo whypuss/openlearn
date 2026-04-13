@@ -1,9 +1,11 @@
-# Render Blueprint — OpenLearn AI Service (Docker)
+# Render Blueprint — OpenLearn AI Service
 services:
   - type: web
     name: openlearn-api
-    env: docker
+    env: python
     region: oregon
     plan: free
-    dockerfilePath: ./Dockerfile
+    rootDir: ai-service
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
