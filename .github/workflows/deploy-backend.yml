@@ -37,6 +37,6 @@ jobs:
           gcloud run deploy ${{ env.SERVICE_NAME }} \
             --source ./backend \
             --region ${{ env.REGION }} \
-            --set-env-vars "OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }}" \
+            --set-env-vars "OPENROUTER_API_KEY=${{ secrets.o }}" \
             --allow-unauthenticated \
             --platform managed
