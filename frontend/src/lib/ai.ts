@@ -29,8 +29,7 @@ export interface TestResult {
   latencyMs: number;
 }
 
-// Call our own backend which proxies to OpenRouter
-const BACKEND_URL = ""; // filled by deploy script
+const BACKEND_URL = "https://openlearn-backend-181179752596.us-central1.run.app";
 
 // ─── Flashcard generation ───────────────────────────────────
 
@@ -78,8 +77,7 @@ function getBackendUrl(): string {
   if (typeof window !== "undefined" && (window as any).__OPENLEARN_BACKEND__) {
     return (window as any).__OPENLEARN_BACKEND__;
   }
-  // Fallback for local dev: assumes backend runs on same host
-  return "";
+  return BACKEND_URL;
 }
 
 const DEFAULT_MODEL = "qwen/qwen-2.5-7b-instruct";
