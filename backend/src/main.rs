@@ -429,6 +429,7 @@ impl Database {
 #[derive(Clone)]
 struct AppState {
     db: Database,
+    openrouter_key: String,
 }
 
 // ─── Routes ──────────────────────────────────────────────────────────────────
@@ -504,6 +505,49 @@ async fn review_card(State(state): State<AppState>, Json(payload): Json<Value>) 
     Ok(Json(state.db.review_card(card_id, rating)?))
 }
 
+// ─── AI Generation (OpenRouter) ──────────────────────────────────────────────
+
+#[derive(Debug, Deserialize)]
+struct GenerateRequest {
+    prompt: String,
+    max_tokens: Option<u32>,
+    model: Option<String>,
+}
+
+async fn generate(
+    State(state): State<AppState>,
+    Json(payload): Json<GenerateRequest>,
+) -> Result<String, AppError> {
+    let model = payload.model.unwrap_or_else(|| "qwen/qwen-2.5-7b-instruct".to_string());
+    let max_tokens = payload.max_tokens.unwrap_or(1024);
+
+    let client = reqwest::Client::new();
+    let resp = client
+        .post("https://openrouter.ai/api/v1/chat/completions")
+        .header("Authorization", format!("Bearer {}", state.openrouter_key))
+        .header("Content-Type", "application/json")
+        .json(&serde_json::json!({
+            "model": model,
+            "messages": [{"role": "user", "content": payload.prompt}],
+            "max_tokens": max_tokens
+        }))
+        .send()
+        .await
+        .map_err(|e| AppError::BadRequest(e.to_string()))?;
+
+    let body: Value = resp
+        .json()
+        .await
+        .map_err(|e| AppError::BadRequest(e.to_string()))?;
+
+    let content = body["choices"][0]["message"]["content"]
+        .as_str()
+        .unwrap_or("")
+        .to_string();
+
+    Ok(content)
+}
+
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 #[tokio::main]
@@ -525,7 +569,9 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/cards/{card_id}", axum::routing::delete(delete_card))
         // Review
         .route("/api/review", post(review_card))
-        .with_state(AppState { db });
+        // AI Generate
+        .route("/api/generate", post(generate))
+        .with_state(AppState { db, openrouter_key: std::env::var("OPENROUTER_API_KEY").unwrap_or_default() });
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await?;
     println!("OpenLearn Backend running on http://localhost:8080");

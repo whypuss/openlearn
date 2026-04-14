@@ -3,14 +3,13 @@
  * No server required — runs entirely in the browser
  */
 
-const PDFJS_CDN = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/4.4.168";
-
 export async function extractTextFromPdf(file: File): Promise<string> {
   // Dynamically load PDF.js
   if (typeof window === "undefined") return "";
 
   const pdfjs = await import("pdfjs-dist");
-  pdfjs.GlobalWorkerOptions.workerSrc = `${PDFJS_CDN}/pdf.worker.min.mjs`;
+  // Use local worker from /public to avoid CORS/CDN issues
+  pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
 
   const arrayBuffer = await file.arrayBuffer();
   const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;

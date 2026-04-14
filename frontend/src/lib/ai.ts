@@ -29,8 +29,8 @@ export interface TestResult {
   latencyMs: number;
 }
 
-const HF_API_BASE = "https://api-inference.huggingface.co/models";
-const DEFAULT_MODEL = "Qwen/Qwen2.5-7B-Instruct";
+// Call our own backend which proxies to OpenRouter
+const BACKEND_URL = ""; // filled by deploy script
 
 // ─── Flashcard generation ───────────────────────────────────
 
@@ -73,25 +73,34 @@ function extractJson(text: string): any {
   return null;
 }
 
+// Lazy-load backend URL (set by window.__OPENLEARN_BACKEND__ injected by deploy)
+function getBackendUrl(): string {
+  if (typeof window !== "undefined" && (window as any).__OPENLEARN_BACKEND__) {
+    return (window as any).__OPENLEARN_BACKEND__;
+  }
+  // Fallback for local dev: assumes backend runs on same host
+  return "";
+}
+
+const DEFAULT_MODEL = "qwen/qwen-2.5-7b-instruct";
+
 async function hfGenerate(prompt: string, maxTokens: number, signal?: AbortSignal): Promise<string> {
-  const response = await fetch(`${HF_API_BASE}/${DEFAULT_MODEL}`, {
+  const backendUrl = getBackendUrl();
+  const response = await fetch(`${backendUrl}/api/generate`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      inputs: prompt,
-      parameters: { max_new_tokens: maxTokens, temperature: 0.7, return_full_text: false },
-      options: { use_cache: true, wait_for_model: true },
+      prompt,
+      max_tokens: maxTokens,
+      model: DEFAULT_MODEL,
     }),
     signal,
   });
   if (!response.ok) {
     const err = await response.text();
-    throw new Error(`HF API error ${response.status}: ${err}`);
+    throw new Error(`Backend error ${response.status}: ${err}`);
   }
-  const result = await response.json();
-  if (Array.isArray(result)) return result[0]?.generated_text ?? "";
-  if (typeof result === "object") return result.generated_text ?? result.content ?? JSON.stringify(result);
-  return String(result);
+  return response.text();
 }
 
 // ─── Public API ─────────────────────────────────────────────

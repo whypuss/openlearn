@@ -3,3 +3,5 @@ uvicorn[standard]
 supabase
 httpx
 python-multipart
+python-jose[cryptography]
+passlib[bcrypt]
