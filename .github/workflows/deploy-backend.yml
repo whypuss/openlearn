@@ -1,0 +1,42 @@
+name: Deploy Backend to Cloud Run
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "backend/**"
+  workflow_dispatch:
+
+env:
+  SERVICE_NAME: openlearn-backend
+  REGION: us-central1
+  PROJECT_ID: project-4a02967e-5f9d-4d24-a8b
+
+jobs:
+  deploy-backend:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+          workload_identity_provider: "projects/181179752596/locations/global/workloadIdentityPools/openlearn-pool/providers/openlearn-provider"
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Deploy to Cloud Run
+        run: |
+          gcloud run deploy ${{ env.SERVICE_NAME }} \
+            --source ./backend \
+            --region ${{ env.REGION }} \
+            --set-env-vars OPENROUTER_API_KEY=${{ secrets.OPENROUTER_API_KEY }} \
+            --allow-unauthenticated \
+            --platform managed
