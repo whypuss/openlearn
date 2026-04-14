@@ -64,11 +64,36 @@ ${text}`;
 }
 
 function extractJson(text: string): any {
-  const match = text.match(/\{[\s\S]*"cards"[\s\S]*\}|\{[\s\S]*"questions"[\s\S]*\}/);
-  if (match) {
-    try { return JSON.parse(match[0]); } catch { /* fall through */ }
+  // Strategy 1: extract from markdown code block
+  const codeBlockMatch = text.match(/```(?:json)?\s*\n?([\s\S]*?)\n?```/);
+  if (codeBlockMatch) {
+    try { return JSON.parse(codeBlockMatch[1].trim()); } catch { /* fall through */ }
   }
-  try { return JSON.parse(text); } catch { /* fall through */ }
+
+  // Strategy 2: find first { ... } containing "cards" or "questions"
+  // Use a bracket-counting approach to find the matching closing brace
+  const jsonStart = text.indexOf("{");
+  if (jsonStart !== -1) {
+    let depth = 0;
+    let end = -1;
+    for (let i = jsonStart; i < text.length; i++) {
+      if (text[i] === "{") depth++;
+      else if (text[i] === "}") {
+        depth--;
+        if (depth === 0) { end = i; break; }
+      }
+    }
+    if (end !== -1) {
+      const json = text.slice(jsonStart, end + 1);
+      try {
+        const parsed = JSON.parse(json);
+        if (parsed?.cards || parsed?.questions) return parsed;
+      } catch { /* try next approach */ }
+    }
+  }
+
+  // Strategy 3: try raw parse
+  try { return JSON.parse(text.trim()); } catch { /* fall through */ }
   return null;
 }
 

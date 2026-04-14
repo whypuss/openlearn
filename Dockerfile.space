@@ -1,15 +1,8 @@
-FROM node:20-alpine AS builder
-WORKDIR /app
-COPY frontend/package.json frontend/pnpm-lock.yaml* ./
-RUN npm install -g pnpm && pnpm install
-COPY frontend/ ./
-RUN pnpm build
-
+# Serve pre-built Next.js app to avoid HF Spaces build timeout
 FROM node:20-alpine
 WORKDIR /app
 RUN npm install -g serve
-COPY --from=builder /app/frontend/.next /app
-COPY --from=builder /app/frontend/public /app/public 2>/dev/null || true
-COPY --from=builder /app/frontend/static /app/static 2>/dev/null || true
+COPY hf_space/.next /app
+COPY hf_space/.next/static /app/static 2>/dev/null || true
 EXPOSE 3000
 CMD ["serve", "-s", "/app", "-l", "3000"]
