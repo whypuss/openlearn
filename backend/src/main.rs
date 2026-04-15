@@ -3,11 +3,12 @@
 
 use axum::{
     extract::{Path, Query, State},
-    http::StatusCode,
+    http::{StatusCode, header},
     response::IntoResponse,
     routing::{get, post},
     Json, Router,
 };
+use tower_http::cors::{CorsLayer, Any};
 use chrono::{DateTime, Duration, Utc};
 use rusqlite::{params, Connection};
 use serde::{Deserialize, Serialize};
@@ -554,6 +555,11 @@ async fn generate(
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let db = Database::new("openlearn.db")?;
 
+    let cors = CorsLayer::new()
+        .allow_origin(Any)
+        .allow_methods(Any)
+        .allow_headers(Any);
+
     let app = Router::new()
         .route("/health", get(health))
         // Decks
@@ -571,6 +577,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/api/review", post(review_card))
         // AI Generate
         .route("/api/generate", post(generate))
+        .layer(cors)
         .with_state(AppState { db, openrouter_key: std::env::var("OPENROUTER_API_KEY").unwrap_or_default() });
 
     let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await?;
