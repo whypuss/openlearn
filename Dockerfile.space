@@ -1,8 +1,24 @@
-# Serve pre-built Next.js app to avoid HF Spaces build timeout
-FROM node:20-alpine
+# Optimized build to avoid HF Spaces timeout
+FROM node:20-slim
+WORKDIR /app
+
+# Copy package files first for better caching
+COPY frontend/package.json frontend/pnpm-lock.yaml* ./
+
+# Install dependencies with npm (faster than pnpm for Docker)
+RUN npm install --prefer-offline && \
+    npm cache clean --force
+
+# Copy source and build
+COPY frontend/ ./
+RUN npx next build
+
+# Serve with standalone output
+FROM node:20-slim
 WORKDIR /app
 RUN npm install -g serve
-COPY hf_space/.next /app
-COPY hf_space/.next/static /app/static 2>/dev/null || true
+COPY --from=0 /app/.next/standalone /app/
+COPY --from=0 /app/.next/static /app/static/
+COPY --from=0 /app/public /app/public/
 EXPOSE 3000
-CMD ["serve", "-s", "/app", "-l", "3000"]
+CMD ["node", "server.js"]
