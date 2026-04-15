@@ -1,0 +1,14 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/project-4a02967e-5f9d-4d24-a8b/openlearn-repo/openlearn-frontend:latest'
+      - '-f'
+      - 'Dockerfile.prod'
+      - '.'
+    id: 'build-image'
+    waitFor: ['-']
+timeout: '600s'
+options:
+  logging: 'LOGGING_ONLY'
