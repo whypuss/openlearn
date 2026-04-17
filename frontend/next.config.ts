@@ -5,7 +5,6 @@ const nextConfig: NextConfig = {
     unoptimized: true,
   },
   trailingSlash: true,
-  output: "standalone",
 };
 
 export default nextConfig;
