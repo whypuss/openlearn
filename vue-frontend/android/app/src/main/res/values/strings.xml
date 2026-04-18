@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">OpenLearn Local</string>
+    <string name="title_activity_main">OpenLearn Local</string>
+    <string name="package_name">com.openlearn.local</string>
+    <string name="custom_url_scheme">com.openlearn.local</string>
+</resources>
